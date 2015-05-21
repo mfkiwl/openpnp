@@ -30,21 +30,27 @@ import org.openpnp.model.Location;
 import org.openpnp.model.Part;
 
 /**
- * Provides an interface for implementors of vision systems to implement. A
- * VisionProvider is attached to a Camera in configuration and can be commanded
- * by the system to perform a variety of vision tasks.
+ * Provides an interface for implementors of vision systems to implement. The
+ * interface provides mid-level functions for performing vision specific tasks
+ * while high level algorithms are implemented in the various callers such
+ * as Feeder, Nozzles, etc. 
+ * 
+ * Functions in this interface are expected to be able to move the machine as
+ * needed. For instance, getFiducialLocations may make multiple passes at
+ * finding a fiducial while moving the camera closer each time.
+ * 
+ * Concrete classes should provide configuration options for tuning the
+ * vision parameters.
  */
 public interface VisionProvider {
-    /**
-     * Sets the Camera that the VisionProvider should use for image capture.
-     * This is called during setup and will only be called once.
-     * 
-     * @param camera
-     */
-    public void setCamera(Camera camera);
-
     public Wizard getConfigurationWizard();
     
+    /**
+     * @deprecated This interface is moving to higher level functions. See
+     * #locateFiducials, #getPartBottomOffsets, etc.
+     * @param template
+     * @return
+     */
     public List<TemplateMatch> getTemplateMatches(BufferedImage template);
     
     /**
@@ -65,19 +71,32 @@ public interface VisionProvider {
             throws Exception;
     
     /**
+     * Locate fiducial(s) defined by the given Part using the specified
+     * Camera. Return a List of Locations ordered best to worst match.
+     * 
+     * TODO: How do we determine the proper Z location to use? We may need to
+     * pass in a Placement instead of a Part. Alternately we can expect the
+     * caller to set Z beforehand and we will only make moves in X and Y.
+     * @param camera
+     * @return
+     * @throws Exception
+     */
+    public List<Location> getFiducialLocations(Part part, Camera camera) throws Exception;
+    
+    /**
      * Given a Part and a Nozzle it is hanging off, find the Part's offsets
      * from center. This method can be used for either Flying or Bottom vision
-     * depending on the orientation of the Camera this VisionProvider
-     * references. A fixed Camera (Camera.getHead() == null) will perform
-     * bottom vision while a Head mounted camera (Camera.getHead() != null)
-     * will perform flying vision. The two are effectively the same since
-     * both use an image of the bottom of the part.
+     * depending on the orientation of the Camera passed in. A fixed Camera
+     * (Camera.getHead() == null) will perform bottom vision while a Head
+     * mounted camera (Camera.getHead() != null) will perform flying vision.
+     * The two are effectively the same since both use an image of the bottom
+     * of the part.
      * 
      * This method is responsible for moving the Nozzle as needed, specifically
      * it should center the Nozzle over the camera before taking a picture.
      * @return
      */
-    public Location getPartBottomOffsets(Part part, Nozzle nozzle) throws Exception;
+    public Location getPartBottomOffsets(Part part, Nozzle nozzle, Camera camera) throws Exception;
     
     public static class TemplateMatch {
         public Location location;
