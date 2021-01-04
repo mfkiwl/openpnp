@@ -1,483 +1,333 @@
 /*
- 	Copyright (C) 2011 Jason von Nieda <jason@vonnieda.org>
- 	
- 	This file is part of OpenPnP.
- 	
-	OpenPnP is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    OpenPnP is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with OpenPnP.  If not, see <http://www.gnu.org/licenses/>.
- 	
- 	For more information about OpenPnP visit http://openpnp.org
-*/
+ * Copyright (C) 2011 Jason von Nieda <jason@vonnieda.org>
+ * 
+ * This file is part of OpenPnP.
+ * 
+ * OpenPnP is free software: you can redistribute it and/or modify it under the terms of the GNU
+ * General Public License as published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ * 
+ * OpenPnP is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along with OpenPnP. If not, see
+ * <http://www.gnu.org/licenses/>.
+ * 
+ * For more information about OpenPnP visit http://openpnp.org
+ */
 
 package org.openpnp.machine.reference.wizards;
 
-import java.awt.BorderLayout;
-import java.awt.FlowLayout;
-import java.awt.event.ActionEvent;
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.swing.AbstractAction;
-import javax.swing.Action;
-import javax.swing.BoxLayout;
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.border.TitledBorder;
 
+import org.jdesktop.beansbinding.AutoBinding.UpdateStrategy;
 import org.openpnp.gui.components.ComponentDecorators;
-import org.openpnp.gui.support.ApplyResetBindingListener;
-import org.openpnp.gui.support.DoubleConverter;
-import org.openpnp.gui.support.IntegerConverter;
-import org.openpnp.gui.support.JBindings.WrappedBinding;
+import org.openpnp.gui.support.AbstractConfigurationWizard;
+import org.openpnp.gui.support.ActuatorsComboBoxModel;
+import org.openpnp.gui.support.Helpers;
+import org.openpnp.gui.support.Icons;
 import org.openpnp.gui.support.LengthConverter;
-import org.openpnp.gui.support.Wizard;
-import org.openpnp.gui.support.WizardContainer;
+import org.openpnp.gui.support.MutableLocationProxy;
 import org.openpnp.machine.reference.ReferenceHead;
+import org.openpnp.model.AbstractModelObject;
 import org.openpnp.model.Configuration;
+import org.openpnp.model.Length;
+import org.openpnp.model.Location;
+import org.openpnp.spi.Camera;
+import org.openpnp.spi.base.AbstractHead.VisualHomingMethod;
+import org.openpnp.util.MovableUtils;
+import org.openpnp.util.UiUtils;
 
-import com.jgoodies.forms.factories.FormFactory;
 import com.jgoodies.forms.layout.ColumnSpec;
 import com.jgoodies.forms.layout.FormLayout;
+import com.jgoodies.forms.layout.FormSpecs;
 import com.jgoodies.forms.layout.RowSpec;
 
+import java.awt.event.ActionEvent;
+
+import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import java.awt.Color;
+import java.awt.event.ItemListener;
+import java.awt.event.ItemEvent;
+
 @SuppressWarnings("serial")
-public class ReferenceHeadConfigurationWizard extends JPanel implements Wizard {
-	private final ReferenceHead head;
-	
-	private JCheckBox chckbxSoftLimitsEnabled;
-	private JTextField textFieldFeedRate;
-	private JTextField textFieldPickDwell;
-	private JTextField textFieldPlaceDwell;
-	private JLabel lblNewLabel;
-	private JLabel lblX;
-	private JLabel lblY;
-	private JLabel lblZ;
-	private JLabel lblC;
-	private JTextField textFieldSoftLimitsXMin;
-	private JTextField textFieldSoftLimitsXMax;
-	private JLabel lblMinimum;
-	private JLabel lblMacimum;
-	private JTextField textFieldSoftLimitsYMin;
-	private JTextField textFieldSoftLimitsYMax;
-	private JTextField textFieldSoftLimitsZMin;
-	private JTextField textFieldSoftLimitsZMax;
-	private JTextField textFieldSoftLimitsCMin;
-	private JTextField textFieldSoftLimitsCMax;
-	private JCheckBox chckbxVisionEnabled;
-	private JLabel lblHomingDotDiameter;
-	private JLabel lblNewLabel_1;
-	private JTextField textFieldHomingDotDiameter;
-	private JLabel lblX_1;
-	private JLabel lblY_1;
-	private JLabel lblZ_1;
-	private JTextField textFieldHomingDotX;
-	private JTextField textFieldHomingDotY;
-	private JTextField textFieldHomingDotZ;
-	private JButton btnSave;
-	private JButton btnCancel;
-	
-	private WizardContainer wizardContainer; 
-	private JPanel panelGeneral;
-	private JPanel panelSoftLimits;
-	private JPanel panelHoming;
-	private JPanel panelVision;
-	private JPanel panelActions;
-	private JLabel lblX_2;
-	private JLabel lblY_2;
-	private JLabel lblZ_2;
-	private JLabel lblC_1;
-	private JLabel lblHomeLocation;
-	private JTextField textFieldHomeLocationX;
-	private JTextField textFieldHomeLocationY;
-	private JTextField textFieldHomeLocationZ;
-	private JTextField textFieldHomeLocationC;
-	private JScrollPane scrollPane;
-	private JPanel panelMain;
-	
-	private List<WrappedBinding> wrappedBindings = new ArrayList<WrappedBinding>();
-	
-	// TODO: Most of what this class did is deprecated and has been moved into
-	// Nozzles, Actuators and Cameras. We may still want to do softlimits, but
-	// these will likely move to the driver. Revisit this and see what is and
-	// isn't needed.
-	public ReferenceHeadConfigurationWizard(ReferenceHead head) {
-		this.head = head;
-		
-		setLayout(new BorderLayout(0, 0));
-		
-		panelMain = new JPanel();
-		
-		scrollPane = new JScrollPane(panelMain);
-		scrollPane.getVerticalScrollBar().setUnitIncrement(Configuration.get().getVerticalScrollUnitIncrement());
-		scrollPane.setBorder(null);
-		panelMain.setLayout(new BoxLayout(panelMain, BoxLayout.Y_AXIS));
-		
-		panelGeneral = new JPanel();
-		panelMain.add(panelGeneral);
-		panelGeneral.setBorder(new TitledBorder(null, "General", TitledBorder.LEADING, TitledBorder.TOP, null, null));
-		panelGeneral.setLayout(new FormLayout(new ColumnSpec[] {
-				FormFactory.RELATED_GAP_COLSPEC,
-				FormFactory.DEFAULT_COLSPEC,
-				FormFactory.RELATED_GAP_COLSPEC,
-				FormFactory.DEFAULT_COLSPEC,
-				FormFactory.RELATED_GAP_COLSPEC,
-				FormFactory.DEFAULT_COLSPEC,
-				FormFactory.RELATED_GAP_COLSPEC,
-				FormFactory.DEFAULT_COLSPEC,},
-			new RowSpec[] {
-				FormFactory.RELATED_GAP_ROWSPEC,
-				FormFactory.DEFAULT_ROWSPEC,
-				FormFactory.RELATED_GAP_ROWSPEC,
-				FormFactory.DEFAULT_ROWSPEC,
-				FormFactory.RELATED_GAP_ROWSPEC,
-				FormFactory.DEFAULT_ROWSPEC,}));
-		
-		label = new JLabel("Safe-Z");
-		panelGeneral.add(label, "2, 2, right, default");
-		
-		textFieldSafeZ = new JTextField();
-		textFieldSafeZ.setColumns(8);
-		panelGeneral.add(textFieldSafeZ, "4, 2");
-		
-		JLabel lblFeedRate = new JLabel("Feed Rate (units/min)");
-		panelGeneral.add(lblFeedRate, "6, 2, right, default");
-		
-		textFieldFeedRate = new JTextField();
-		panelGeneral.add(textFieldFeedRate, "8, 2");
-		textFieldFeedRate.setColumns(8);
-		
-		lblNewLabel = new JLabel("Pick Dwell (ms)");
-		panelGeneral.add(lblNewLabel, "2, 4, right, default");
-		
-		textFieldPickDwell = new JTextField();
-		panelGeneral.add(textFieldPickDwell, "4, 4");
-		textFieldPickDwell.setColumns(8);
-		
-		JLabel lblPlaceDwell = new JLabel("Place Dwell (ms)");
-		panelGeneral.add(lblPlaceDwell, "6, 4, right, default");
-		
-		textFieldPlaceDwell = new JTextField();
-		panelGeneral.add(textFieldPlaceDwell, "8, 4");
-		textFieldPlaceDwell.setColumns(8);
-		
-		panelSoftLimits = new JPanel();
-		panelMain.add(panelSoftLimits);
-		panelSoftLimits.setBorder(new TitledBorder(null, "Soft Limits", TitledBorder.LEADING, TitledBorder.TOP, null, null));
-		panelSoftLimits.setLayout(new FormLayout(new ColumnSpec[] {
-				FormFactory.RELATED_GAP_COLSPEC,
-				FormFactory.DEFAULT_COLSPEC,
-				FormFactory.RELATED_GAP_COLSPEC,
-				FormFactory.DEFAULT_COLSPEC,
-				FormFactory.RELATED_GAP_COLSPEC,
-				FormFactory.DEFAULT_COLSPEC,},
-			new RowSpec[] {
-				FormFactory.RELATED_GAP_ROWSPEC,
-				FormFactory.DEFAULT_ROWSPEC,
-				FormFactory.RELATED_GAP_ROWSPEC,
-				FormFactory.DEFAULT_ROWSPEC,
-				FormFactory.RELATED_GAP_ROWSPEC,
-				FormFactory.DEFAULT_ROWSPEC,
-				FormFactory.RELATED_GAP_ROWSPEC,
-				FormFactory.DEFAULT_ROWSPEC,
-				FormFactory.RELATED_GAP_ROWSPEC,
-				FormFactory.DEFAULT_ROWSPEC,
-				FormFactory.RELATED_GAP_ROWSPEC,
-				FormFactory.DEFAULT_ROWSPEC,}));
-		
-		chckbxSoftLimitsEnabled = new JCheckBox("Soft Limits Enabled?");
-		panelSoftLimits.add(chckbxSoftLimitsEnabled, "2, 2, 5, 1");
-		
-		lblMinimum = new JLabel("Minimum");
-		panelSoftLimits.add(lblMinimum, "4, 4");
-		
-		lblMacimum = new JLabel("Maximum");
-		panelSoftLimits.add(lblMacimum, "6, 4");
-		
-		lblX = new JLabel("X");
-		panelSoftLimits.add(lblX, "2, 6, right, default");
-		
-		textFieldSoftLimitsXMin = new JTextField();
-		panelSoftLimits.add(textFieldSoftLimitsXMin, "4, 6");
-		textFieldSoftLimitsXMin.setColumns(5);
-		
-		textFieldSoftLimitsXMax = new JTextField();
-		panelSoftLimits.add(textFieldSoftLimitsXMax, "6, 6");
-		textFieldSoftLimitsXMax.setColumns(5);
-		
-		lblY = new JLabel("Y");
-		panelSoftLimits.add(lblY, "2, 8, right, default");
-		
-		textFieldSoftLimitsYMin = new JTextField();
-		panelSoftLimits.add(textFieldSoftLimitsYMin, "4, 8");
-		textFieldSoftLimitsYMin.setColumns(5);
-		
-		textFieldSoftLimitsYMax = new JTextField();
-		panelSoftLimits.add(textFieldSoftLimitsYMax, "6, 8");
-		textFieldSoftLimitsYMax.setColumns(5);
-		
-		lblZ = new JLabel("Z");
-		panelSoftLimits.add(lblZ, "2, 10, right, default");
-		
-		textFieldSoftLimitsZMin = new JTextField();
-		panelSoftLimits.add(textFieldSoftLimitsZMin, "4, 10");
-		textFieldSoftLimitsZMin.setColumns(5);
-		
-		textFieldSoftLimitsZMax = new JTextField();
-		panelSoftLimits.add(textFieldSoftLimitsZMax, "6, 10");
-		textFieldSoftLimitsZMax.setColumns(5);
-		
-		lblC = new JLabel("C");
-		panelSoftLimits.add(lblC, "2, 12, right, default");
-		
-		textFieldSoftLimitsCMin = new JTextField();
-		panelSoftLimits.add(textFieldSoftLimitsCMin, "4, 12");
-		textFieldSoftLimitsCMin.setColumns(5);
-		
-		textFieldSoftLimitsCMax = new JTextField();
-		panelSoftLimits.add(textFieldSoftLimitsCMax, "6, 12");
-		textFieldSoftLimitsCMax.setColumns(5);
-		
-		panelHoming = new JPanel();
-		panelMain.add(panelHoming);
-		panelHoming.setBorder(new TitledBorder(null, "Homing", TitledBorder.LEADING, TitledBorder.TOP, null, null));
-		panelHoming.setLayout(new FormLayout(new ColumnSpec[] {
-				FormFactory.RELATED_GAP_COLSPEC,
-				FormFactory.DEFAULT_COLSPEC,
-				FormFactory.RELATED_GAP_COLSPEC,
-				ColumnSpec.decode("default:grow"),
-				FormFactory.RELATED_GAP_COLSPEC,
-				ColumnSpec.decode("default:grow"),
-				FormFactory.RELATED_GAP_COLSPEC,
-				ColumnSpec.decode("default:grow"),
-				FormFactory.RELATED_GAP_COLSPEC,
-				ColumnSpec.decode("default:grow"),
-				FormFactory.RELATED_GAP_COLSPEC,
-				ColumnSpec.decode("default:grow"),},
-			new RowSpec[] {
-				FormFactory.RELATED_GAP_ROWSPEC,
-				FormFactory.DEFAULT_ROWSPEC,
-				FormFactory.RELATED_GAP_ROWSPEC,
-				FormFactory.DEFAULT_ROWSPEC,}));
-		
-		lblX_2 = new JLabel("X");
-		panelHoming.add(lblX_2, "4, 2, center, default");
-		
-		lblY_2 = new JLabel("Y");
-		panelHoming.add(lblY_2, "6, 2, center, default");
-		
-		lblZ_2 = new JLabel("Z");
-		panelHoming.add(lblZ_2, "8, 2, center, default");
-		
-		lblC_1 = new JLabel("C");
-		panelHoming.add(lblC_1, "10, 2, center, default");
-		
-		lblHomeLocation = new JLabel("Home Location");
-		lblHomeLocation.setToolTipText("Coordinates that will be applied when the machine is homed. This is position you want the DROs to show after homing.");
-		panelHoming.add(lblHomeLocation, "2, 4, right, default");
-		
-		textFieldHomeLocationX = new JTextField();
-		panelHoming.add(textFieldHomeLocationX, "4, 4, fill, default");
-		textFieldHomeLocationX.setColumns(5);
-		
-		textFieldHomeLocationY = new JTextField();
-		panelHoming.add(textFieldHomeLocationY, "6, 4, fill, default");
-		textFieldHomeLocationY.setColumns(5);
-		
-		textFieldHomeLocationZ = new JTextField();
-		panelHoming.add(textFieldHomeLocationZ, "8, 4, fill, default");
-		textFieldHomeLocationZ.setColumns(5);
-		
-		textFieldHomeLocationC = new JTextField();
-		panelHoming.add(textFieldHomeLocationC, "10, 4, fill, default");
-		textFieldHomeLocationC.setColumns(5);
-		
-		panelVision = new JPanel();
-		panelMain.add(panelVision);
-		panelVision.setBorder(new TitledBorder(null, "Vision", TitledBorder.LEADING, TitledBorder.TOP, null, null));
-		panelVision.setLayout(new FormLayout(new ColumnSpec[] {
-				FormFactory.RELATED_GAP_COLSPEC,
-				FormFactory.DEFAULT_COLSPEC,
-				FormFactory.RELATED_GAP_COLSPEC,
-				FormFactory.DEFAULT_COLSPEC,
-				FormFactory.RELATED_GAP_COLSPEC,
-				FormFactory.DEFAULT_COLSPEC,
-				FormFactory.RELATED_GAP_COLSPEC,
-				FormFactory.DEFAULT_COLSPEC,
-				FormFactory.RELATED_GAP_COLSPEC,
-				ColumnSpec.decode("default:grow"),},
-			new RowSpec[] {
-				FormFactory.RELATED_GAP_ROWSPEC,
-				FormFactory.DEFAULT_ROWSPEC,
-				FormFactory.RELATED_GAP_ROWSPEC,
-				FormFactory.DEFAULT_ROWSPEC,
-				FormFactory.RELATED_GAP_ROWSPEC,
-				FormFactory.DEFAULT_ROWSPEC,
-				FormFactory.RELATED_GAP_ROWSPEC,
-				FormFactory.DEFAULT_ROWSPEC,}));
-		
-		chckbxVisionEnabled = new JCheckBox("Vision Enabled?");
-		panelVision.add(chckbxVisionEnabled, "2, 2");
-		
-		lblX_1 = new JLabel("X");
-		panelVision.add(lblX_1, "4, 4, center, default");
-		
-		lblY_1 = new JLabel("Y");
-		panelVision.add(lblY_1, "6, 4, center, default");
-		
-		lblZ_1 = new JLabel("Z");
-		panelVision.add(lblZ_1, "8, 4, center, default");
-		
-		lblNewLabel_1 = new JLabel("Homing Dot Location");
-		lblNewLabel_1.setToolTipText("The location of the homing dot in relation to the Home Location. When Vision is used for homing, this will be applied to the DROs after Vision Homing completes.");
-		panelVision.add(lblNewLabel_1, "2, 6, right, default");
-		
-		textFieldHomingDotX = new JTextField();
-		panelVision.add(textFieldHomingDotX, "4, 6");
-		textFieldHomingDotX.setColumns(8);
-		
-		textFieldHomingDotY = new JTextField();
-		panelVision.add(textFieldHomingDotY, "6, 6");
-		textFieldHomingDotY.setColumns(8);
-		
-		textFieldHomingDotZ = new JTextField();
-		panelVision.add(textFieldHomingDotZ, "8, 6");
-		textFieldHomingDotZ.setColumns(8);
-		
-		lblHomingDotDiameter = new JLabel("Homing Dot Diameter (mm)");
-		panelVision.add(lblHomingDotDiameter, "2, 8, right, default");
-		
-		textFieldHomingDotDiameter = new JTextField();
-		panelVision.add(textFieldHomingDotDiameter, "4, 8");
-		textFieldHomingDotDiameter.setColumns(5);
-		add(scrollPane, BorderLayout.CENTER);
-		
-		panelActions = new JPanel();
-		FlowLayout fl_panelActions = (FlowLayout) panelActions.getLayout();
-		fl_panelActions.setAlignment(FlowLayout.RIGHT);
-		add(panelActions, BorderLayout.SOUTH);
-		
-		btnCancel = new JButton(cancelAction);
-		panelActions.add(btnCancel);
-		
-		btnSave = new JButton(saveAction);
-		panelActions.add(btnSave);
-		
-		createBindings();
-		loadFromModel();
-	}
-	
-	private void createBindings() {
-		LengthConverter lengthConverter = new LengthConverter();
-		DoubleConverter doubleConverter = new DoubleConverter(Configuration.get().getLengthDisplayFormat());
-		IntegerConverter integerConverter = new IntegerConverter();
-		ApplyResetBindingListener listener = new ApplyResetBindingListener(saveAction, cancelAction);
-//		wrappedBindings.add(JBindings.bind(head, "safeZ", textFieldSafeZ, "text", lengthConverter, listener));
-//		wrappedBindings.add(JBindings.bind(head, "feedRate", textFieldFeedRate, "text", lengthConverter, listener));
-//		wrappedBindings.add(JBindings.bind(head, "pickDwellMilliseconds", textFieldPickDwell, "text", integerConverter, listener));
-//		wrappedBindings.add(JBindings.bind(head, "placeDwellMilliseconds", textFieldPlaceDwell, "text", integerConverter, listener));
+public class ReferenceHeadConfigurationWizard extends AbstractConfigurationWizard {
+    private final ReferenceHead head;
 
-//		wrappedBindings.add(JBindings.bind(head, "softLimits.enabled", chckbxSoftLimitsEnabled, "selected", listener));
-//		wrappedBindings.add(JBindings.bind(head, "softLimits.minimums.lengthX", textFieldSoftLimitsXMin, "text", lengthConverter, listener));
-//		wrappedBindings.add(JBindings.bind(head, "softLimits.maximums.lengthX", textFieldSoftLimitsXMax, "text", lengthConverter, listener));
-//		wrappedBindings.add(JBindings.bind(head, "softLimits.minimums.lengthY", textFieldSoftLimitsYMin, "text", lengthConverter, listener));
-//		wrappedBindings.add(JBindings.bind(head, "softLimits.maximums.lengthY", textFieldSoftLimitsYMax, "text", lengthConverter, listener));
-//		wrappedBindings.add(JBindings.bind(head, "softLimits.minimums.lengthZ", textFieldSoftLimitsZMin, "text", lengthConverter, listener));
-//		wrappedBindings.add(JBindings.bind(head, "softLimits.maximums.lengthZ", textFieldSoftLimitsZMax, "text", lengthConverter, listener));
-//		wrappedBindings.add(JBindings.bind(head, "softLimits.minimums.rotation", textFieldSoftLimitsCMin, "text", doubleConverter, listener));
-//		wrappedBindings.add(JBindings.bind(head, "softLimits.maximums.rotation", textFieldSoftLimitsCMax, "text", doubleConverter, listener));
-		
-//		wrappedBindings.add(JBindings.bind(head, "homing.location.lengthX", textFieldHomeLocationX, "text", lengthConverter, listener));
-//		wrappedBindings.add(JBindings.bind(head, "homing.location.lengthY", textFieldHomeLocationY, "text", lengthConverter, listener));
-//		wrappedBindings.add(JBindings.bind(head, "homing.location.lengthZ", textFieldHomeLocationZ, "text", lengthConverter, listener));
-//		wrappedBindings.add(JBindings.bind(head, "homing.location.rotation", textFieldHomeLocationC, "text", doubleConverter, listener));
-//		
-//		wrappedBindings.add(JBindings.bind(head, "homing.vision.enabled", chckbxVisionEnabled, "selected", listener));
-//		wrappedBindings.add(JBindings.bind(head, "homing.vision.homingDotDiameter", textFieldHomingDotDiameter, "text", doubleConverter, listener));
-//		wrappedBindings.add(JBindings.bind(head, "homing.vision.homingDotLocation.lengthX", textFieldHomingDotX, "text", lengthConverter, listener));
-//		wrappedBindings.add(JBindings.bind(head, "homing.vision.homingDotLocation.lengthY", textFieldHomingDotY, "text", lengthConverter, listener));
-//		wrappedBindings.add(JBindings.bind(head, "homing.vision.homingDotLocation.lengthZ", textFieldHomingDotZ, "text", lengthConverter, listener));
-		ComponentDecorators.decorateWithAutoSelectAndLengthConversion(textFieldSafeZ);
-		ComponentDecorators.decorateWithAutoSelectAndLengthConversion(textFieldFeedRate);
-		ComponentDecorators.decorateWithAutoSelect(textFieldPickDwell);
-		ComponentDecorators.decorateWithAutoSelect(textFieldPlaceDwell);
+    public ReferenceHeadConfigurationWizard(ReferenceHead head) {
+        this.head = head;
+        createUi();
+    }
 
-		ComponentDecorators.decorateWithAutoSelectAndLengthConversion(textFieldSoftLimitsXMin);
-		ComponentDecorators.decorateWithAutoSelectAndLengthConversion(textFieldSoftLimitsXMax);
-		ComponentDecorators.decorateWithAutoSelectAndLengthConversion(textFieldSoftLimitsYMin);
-		ComponentDecorators.decorateWithAutoSelectAndLengthConversion(textFieldSoftLimitsYMax);
-		ComponentDecorators.decorateWithAutoSelectAndLengthConversion(textFieldSoftLimitsZMin);
-		ComponentDecorators.decorateWithAutoSelectAndLengthConversion(textFieldSoftLimitsZMax);
-		
-		ComponentDecorators.decorateWithAutoSelectAndLengthConversion(textFieldHomeLocationX);
-		ComponentDecorators.decorateWithAutoSelectAndLengthConversion(textFieldHomeLocationY);
-		ComponentDecorators.decorateWithAutoSelectAndLengthConversion(textFieldHomeLocationZ);
-		
-		ComponentDecorators.decorateWithAutoSelect(textFieldHomingDotDiameter);
-		ComponentDecorators.decorateWithAutoSelectAndLengthConversion(textFieldHomingDotX);
-		ComponentDecorators.decorateWithAutoSelectAndLengthConversion(textFieldHomingDotX);
-		ComponentDecorators.decorateWithAutoSelectAndLengthConversion(textFieldHomingDotX);
-	}
-	
-	private void loadFromModel() {
-		for (WrappedBinding wrappedBinding : wrappedBindings) {
-			wrappedBinding.reset();
-		}
-		saveAction.setEnabled(false);
-		cancelAction.setEnabled(false);
-	}
-	
-	private void saveToModel() {
-		for (WrappedBinding wrappedBinding : wrappedBindings) {
-			wrappedBinding.save();
-		}
-		saveAction.setEnabled(false);
-		cancelAction.setEnabled(false);
-	}
-	
-	@Override
-	public void setWizardContainer(WizardContainer wizardContainer) {
-		this.wizardContainer = wizardContainer;
-	}
+    private void createUi() {
 
-	@Override
-	public JPanel getWizardPanel() {
-		return this;
-	}
+        JPanel panel = new JPanel();
+        panel.setBorder(new TitledBorder(null, "Locations", TitledBorder.LEADING, TitledBorder.TOP,
+                null, null));
+        contentPanel.add(panel);
+        panel.setLayout(new FormLayout(new ColumnSpec[] {
+                FormSpecs.RELATED_GAP_COLSPEC,
+                ColumnSpec.decode("max(80dlu;default)"),
+                FormSpecs.RELATED_GAP_COLSPEC,
+                FormSpecs.DEFAULT_COLSPEC,
+                FormSpecs.RELATED_GAP_COLSPEC,
+                FormSpecs.DEFAULT_COLSPEC,
+                FormSpecs.RELATED_GAP_COLSPEC,
+                FormSpecs.DEFAULT_COLSPEC,
+                FormSpecs.RELATED_GAP_COLSPEC,
+                FormSpecs.DEFAULT_COLSPEC,},
+            new RowSpec[] {
+                FormSpecs.RELATED_GAP_ROWSPEC,
+                FormSpecs.DEFAULT_ROWSPEC,
+                FormSpecs.RELATED_GAP_ROWSPEC,
+                FormSpecs.DEFAULT_ROWSPEC,
+                FormSpecs.RELATED_GAP_ROWSPEC,
+                FormSpecs.DEFAULT_ROWSPEC,
+                FormSpecs.RELATED_GAP_ROWSPEC,
+                FormSpecs.DEFAULT_ROWSPEC,
+                FormSpecs.RELATED_GAP_ROWSPEC,
+                FormSpecs.DEFAULT_ROWSPEC,
+                FormSpecs.RELATED_GAP_ROWSPEC,
+                FormSpecs.DEFAULT_ROWSPEC,}));
 
-	@Override
-	public String getWizardName() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-	
-	private Action saveAction = new AbstractAction("Apply") {
-		@Override
-		public void actionPerformed(ActionEvent arg0) {
-			saveToModel();
-			wizardContainer.wizardCompleted(ReferenceHeadConfigurationWizard.this);
-		}
-	};
-	
-	private Action cancelAction = new AbstractAction("Reset") {
-		@Override
-		public void actionPerformed(ActionEvent arg0) {
-			loadFromModel();
-		}
-	};
-	private JLabel label;
-	private JTextField textFieldSafeZ;
+        JLabel lblX = new JLabel("X");
+        panel.add(lblX, "4, 2, center, default");
+
+        JLabel lblY = new JLabel("Y");
+        panel.add(lblY, "6, 2, center, default");
+        
+        JLabel lblHomingFiducial = new JLabel("Homing Fiducial");
+        panel.add(lblHomingFiducial, "2, 4, right, default");
+        
+        homingFiducialX = new JTextField();
+        panel.add(homingFiducialX, "4, 4, fill, default");
+        homingFiducialX.setColumns(10);
+        
+        homingFiducialY = new JTextField();
+        homingFiducialY.setText("");
+        panel.add(homingFiducialY, "6, 4, fill, default");
+        homingFiducialY.setColumns(10);
+        
+        JButton btnCaptureHome = new JButton(captureHomeCoordinatesAction);
+        btnCaptureHome.setHideActionText(true);
+        panel.add(btnCaptureHome, "8, 4");
+        
+        JButton btnPositionHome = new JButton(positionHomeCoordinatesAction);
+        btnPositionHome.setHideActionText(true);
+        panel.add(btnPositionHome, "10, 4");
+        
+        JLabel lblHomingMethod = new JLabel("Homing Method");
+        panel.add(lblHomingMethod, "2, 6, right, default");
+        
+        visualHomingMethod = new JComboBox(VisualHomingMethod.values());
+        visualHomingMethod.addItemListener(new ItemListener() {
+            public void itemStateChanged(ItemEvent e) {
+                adaptDialog();
+            }
+        });
+        panel.add(visualHomingMethod, "4, 6, 3, 1, fill, default");
+        
+        JLabel lblWarningChangingThese = new JLabel("<html><p>\r\n<strong>Important Notice</strong>: the homing fiducial should be mounted \r\nand configured early in the build process, before you start capturing a large number of\r\nlocations for the Machine Setup (nozzle tip changer, feeders etc.) \r\n</p>\r\n<p style=\"color:red\">Each time the above settings are changed or the fiducial physically moved, all the already captured locations in the Machine Setup will be broken. </p></html>");
+        lblWarningChangingThese.setForeground(Color.BLACK);
+        panel.add(lblWarningChangingThese, "4, 8, 7, 1");
+
+        JLabel lblParkLocation = new JLabel("Park Location");
+        panel.add(lblParkLocation, "2, 12, right, default");
+
+        parkX = new JTextField();
+        panel.add(parkX, "4, 12, fill, default");
+        parkX.setColumns(5);
+
+        parkY = new JTextField();
+        parkY.setColumns(5);
+        panel.add(parkY, "6, 12, fill, default");
+
+        JButton btnNewButton = new JButton(captureParkCoordinatesAction);
+        btnNewButton.setHideActionText(true);
+        panel.add(btnNewButton, "8, 12");
+
+        JButton btnNewButton_1 = new JButton(positionParkCoordinatesAction);
+        btnNewButton_1.setHideActionText(true);
+        panel.add(btnNewButton_1, "10, 12");
+        
+        JPanel panel_2 = new JPanel();
+        panel_2.setBorder(new TitledBorder(null, "Z Probe", TitledBorder.LEADING, TitledBorder.TOP, null, null));
+        contentPanel.add(panel_2);
+        panel_2.setLayout(new FormLayout(new ColumnSpec[] {
+                FormSpecs.RELATED_GAP_COLSPEC,
+                ColumnSpec.decode("max(80dlu;default)"),
+                FormSpecs.RELATED_GAP_COLSPEC,
+                ColumnSpec.decode("max(50dlu;default)"),},
+            new RowSpec[] {
+                FormSpecs.RELATED_GAP_ROWSPEC,
+                FormSpecs.DEFAULT_ROWSPEC,}));
+        
+        JLabel lblNewLabel_4 = new JLabel("Z Probe Actuator");
+        panel_2.add(lblNewLabel_4, "2, 2, right, default");
+        
+        comboBoxZProbeActuator = new JComboBox();
+        comboBoxZProbeActuator.setModel(new ActuatorsComboBoxModel(head));
+        panel_2.add(comboBoxZProbeActuator, "4, 2");
+        
+        JPanel panel_3 = new JPanel();
+        panel_3.setBorder(new TitledBorder(null, "Pump", TitledBorder.LEADING, TitledBorder.TOP, null, null));
+        contentPanel.add(panel_3);
+        panel_3.setLayout(new FormLayout(new ColumnSpec[] {
+                FormSpecs.RELATED_GAP_COLSPEC,
+                ColumnSpec.decode("max(80dlu;default)"),
+                FormSpecs.RELATED_GAP_COLSPEC,
+                ColumnSpec.decode("max(50dlu;default)"),},
+            new RowSpec[] {
+                FormSpecs.RELATED_GAP_ROWSPEC,
+                FormSpecs.DEFAULT_ROWSPEC,}));
+        
+        JLabel lblVacuumPumpActuator = new JLabel("Vacuum Pump Actuator");
+        panel_3.add(lblVacuumPumpActuator, "2, 2, 2, 1, right, default");
+        
+        comboBoxPumpActuator = new JComboBox();
+        comboBoxPumpActuator.setModel(new ActuatorsComboBoxModel(head));
+        panel_3.add(comboBoxPumpActuator, "4, 2, fill, default");
+        
+    }
+
+    @Override
+    public void createBindings() {
+        LengthConverter lengthConverter = new LengthConverter();
+
+        MutableLocationProxy homingFiducialLocation = new MutableLocationProxy();
+        bind(UpdateStrategy.READ_WRITE, head, "homingFiducialLocation", homingFiducialLocation, "location");
+        addWrappedBinding(homingFiducialLocation, "lengthX", homingFiducialX, "text", lengthConverter);
+        addWrappedBinding(homingFiducialLocation, "lengthY", homingFiducialY, "text", lengthConverter);
+
+        addWrappedBinding(head, "visualHomingMethod", visualHomingMethod, "selectedItem");
+
+        MutableLocationProxy parkLocation = new MutableLocationProxy();
+        bind(UpdateStrategy.READ_WRITE, head, "parkLocation", parkLocation, "location");
+        addWrappedBinding(parkLocation, "lengthX", parkX, "text", lengthConverter);
+        addWrappedBinding(parkLocation, "lengthY", parkY, "text", lengthConverter);
+
+
+        addWrappedBinding(head, "zProbeActuatorName", comboBoxZProbeActuator, "selectedItem");
+        addWrappedBinding(head, "pumpActuatorName", comboBoxPumpActuator, "selectedItem");
+
+        ComponentDecorators.decorateWithAutoSelectAndLengthConversion(homingFiducialX);
+        ComponentDecorators.decorateWithAutoSelectAndLengthConversion(homingFiducialY);
+        ComponentDecorators.decorateWithAutoSelectAndLengthConversion(parkX);
+        ComponentDecorators.decorateWithAutoSelectAndLengthConversion(parkY);
+
+        adaptDialog();
+    }
+
+    protected void adaptDialog() {
+        boolean homingCapture = (visualHomingMethod.getSelectedItem() == VisualHomingMethod.ResetToFiducialLocation);
+        boolean homingFiducial = (visualHomingMethod.getSelectedItem() != VisualHomingMethod.None);
+        captureHomeCoordinatesAction.setEnabled(homingCapture);
+        positionHomeCoordinatesAction.setEnabled(homingCapture);
+        homingFiducialX.setEnabled(homingFiducial);
+        homingFiducialY.setEnabled(homingFiducial);
+    }
+
+    private static Location getParsedLocation(JTextField textFieldX, JTextField textFieldY) {
+        double x = 0, y = 0, z = 0, rotation = 0;
+        if (textFieldX != null) {
+            x = Length.parse(textFieldX.getText())
+                      .getValue();
+        }
+        if (textFieldY != null) {
+            y = Length.parse(textFieldY.getText())
+                      .getValue();
+        }
+        return new Location(Configuration.get()
+                                         .getSystemUnits(),
+                x, y, z, rotation);
+    }
+
+    private Action captureHomeCoordinatesAction =
+            new AbstractAction("Get Camera Coordinates", Icons.captureCamera) {
+                {
+                    putValue(Action.SHORT_DESCRIPTION,
+                            "Capture the location that the camera is centered on.");
+                }
+
+                @Override
+                public void actionPerformed(ActionEvent arg0) {
+                    UiUtils.messageBoxOnException(() -> {
+                        Location l = head.getDefaultCamera()
+                                         .getLocation();
+                        Helpers.copyLocationIntoTextFields(l, homingFiducialX, homingFiducialY, null, null);
+                    });
+                }
+            };
+
+
+    private Action positionHomeCoordinatesAction =
+            new AbstractAction("Position Camera", Icons.centerCamera) {
+                {
+                    putValue(Action.SHORT_DESCRIPTION,
+                            "Position the camera over the center of the location.");
+                }
+
+                @Override
+                public void actionPerformed(ActionEvent arg0) {
+                    UiUtils.submitUiMachineTask(() -> {
+                        Camera camera = head.getDefaultCamera();
+                        Location location = getParsedLocation(homingFiducialX, homingFiducialY);
+                        MovableUtils.moveToLocationAtSafeZ(camera, location);
+                    });
+                }
+            };
+
+
+    private Action captureParkCoordinatesAction =
+            new AbstractAction("Get Camera Coordinates", Icons.captureCamera) {
+                {
+                    putValue(Action.SHORT_DESCRIPTION,
+                            "Capture the location that the camera is centered on.");
+                }
+
+                @Override
+                public void actionPerformed(ActionEvent arg0) {
+                    UiUtils.messageBoxOnException(() -> {
+                        Location l = head.getDefaultCamera()
+                                         .getLocation();
+                        Helpers.copyLocationIntoTextFields(l, parkX, parkY, null, null);
+                    });
+                }
+            };
+
+
+    private Action positionParkCoordinatesAction =
+            new AbstractAction("Position Camera", Icons.centerCamera) {
+                {
+                    putValue(Action.SHORT_DESCRIPTION,
+                            "Position the camera over the center of the location.");
+                }
+
+                @Override
+                public void actionPerformed(ActionEvent arg0) {
+                    UiUtils.submitUiMachineTask(() -> {
+                        Camera camera = head.getDefaultCamera();
+                        Location location = getParsedLocation(parkX, parkY);
+                        MovableUtils.moveToLocationAtSafeZ(camera, location);
+                    });
+                }
+            };
+
+    private JTextField parkX;
+    private JTextField parkY;
+    private JComboBox comboBoxZProbeActuator;
+    private JComboBox comboBoxPumpActuator;
+    private JTextField homingFiducialX;
+    private JTextField homingFiducialY;
+
+
+    private JComboBox visualHomingMethod;
 }

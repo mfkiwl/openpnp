@@ -1,125 +1,97 @@
 /*
- 	Copyright (C) 2011 Jason von Nieda <jason@vonnieda.org>
- 	
- 	This file is part of OpenPnP.
- 	
-	OpenPnP is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    OpenPnP is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with OpenPnP.  If not, see <http://www.gnu.org/licenses/>.
- 	
- 	For more information about OpenPnP visit http://openpnp.org
+ * Copyright (C) 2011 Jason von Nieda <jason@vonnieda.org>
+ * 
+ * This file is part of OpenPnP.
+ * 
+ * OpenPnP is free software: you can redistribute it and/or modify it under the terms of the GNU
+ * General Public License as published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ * 
+ * OpenPnP is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even
+ * the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ * Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License along with OpenPnP. If not, see
+ * <http://www.gnu.org/licenses/>.
+ * 
+ * For more information about OpenPnP visit http://openpnp.org
  */
 
 package org.openpnp.machine.reference.wizards;
 
-import java.awt.Color;
-
-import javax.swing.BoxLayout;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
-import javax.swing.border.EtchedBorder;
 import javax.swing.border.TitledBorder;
 
-import org.jdesktop.beansbinding.AutoBinding.UpdateStrategy;
 import org.openpnp.gui.components.ComponentDecorators;
-import org.openpnp.gui.support.AbstractConfigurationWizard;
-import org.openpnp.gui.support.LengthConverter;
-import org.openpnp.gui.support.MutableLocationProxy;
+import org.openpnp.gui.support.DriversComboBoxModel;
+import org.openpnp.gui.support.NamedConverter;
 import org.openpnp.machine.reference.ReferenceActuator;
+import org.openpnp.model.Configuration;
+import org.openpnp.spi.Driver;
+import org.openpnp.spi.base.AbstractMachine;
 
-import com.jgoodies.forms.factories.FormFactory;
 import com.jgoodies.forms.layout.ColumnSpec;
 import com.jgoodies.forms.layout.FormLayout;
+import com.jgoodies.forms.layout.FormSpecs;
 import com.jgoodies.forms.layout.RowSpec;
 
-public class ReferenceActuatorConfigurationWizard extends
-        AbstractConfigurationWizard {
-    private final ReferenceActuator actuator;
-
-    private JTextField locationX;
-    private JTextField locationY;
-    private JTextField locationZ;
-    private JPanel panelOffsets;
-
-    public ReferenceActuatorConfigurationWizard(ReferenceActuator actuator) {
-        this.actuator = actuator;
-
-        JPanel panelFields = new JPanel();
-        panelFields.setLayout(new BoxLayout(panelFields, BoxLayout.Y_AXIS));
-
-        panelOffsets = new JPanel();
-        panelFields.add(panelOffsets);
-        panelOffsets.setBorder(new TitledBorder(new EtchedBorder(
-                EtchedBorder.LOWERED, null, null), "Offsets",
-                TitledBorder.LEADING, TitledBorder.TOP, null,
-                new Color(0, 0, 0)));
-        panelOffsets.setLayout(new FormLayout(
-                new ColumnSpec[] { FormFactory.RELATED_GAP_COLSPEC,
-                        FormFactory.DEFAULT_COLSPEC,
-                        FormFactory.RELATED_GAP_COLSPEC,
-                        FormFactory.DEFAULT_COLSPEC,
-                        FormFactory.RELATED_GAP_COLSPEC,
-                        FormFactory.DEFAULT_COLSPEC,
-                        FormFactory.RELATED_GAP_COLSPEC,
-                        FormFactory.DEFAULT_COLSPEC, }, new RowSpec[] {
-                        FormFactory.RELATED_GAP_ROWSPEC,
-                        FormFactory.DEFAULT_ROWSPEC,
-                        FormFactory.RELATED_GAP_ROWSPEC,
-                        FormFactory.DEFAULT_ROWSPEC, }));
-
-        JLabel lblX = new JLabel("X");
-        panelOffsets.add(lblX, "2, 2");
-
-        JLabel lblY = new JLabel("Y");
-        panelOffsets.add(lblY, "4, 2");
-
-        JLabel lblZ = new JLabel("Z");
-        panelOffsets.add(lblZ, "6, 2");
-
-        locationX = new JTextField();
-        panelOffsets.add(locationX, "2, 4");
-        locationX.setColumns(5);
-
-        locationY = new JTextField();
-        panelOffsets.add(locationY, "4, 4");
-        locationY.setColumns(5);
-
-        locationZ = new JTextField();
-        panelOffsets.add(locationZ, "6, 4");
-        locationZ.setColumns(5);
-
-        contentPanel.add(panelOffsets);
+@SuppressWarnings("serial")
+public class ReferenceActuatorConfigurationWizard extends AbstractActuatorConfigurationWizard {
+    private JPanel panelProperties;
+    private JLabel lblName;
+    private JTextField nameTf;
+    private JLabel lblDriver;
+    private JComboBox driver;
+    
+    public ReferenceActuatorConfigurationWizard(AbstractMachine machine, ReferenceActuator actuator) {
+        super(machine,  actuator);
+    }
+        
+    @Override 
+    protected void createUi(AbstractMachine machine) {
+        panelProperties = new JPanel();
+        panelProperties.setBorder(new TitledBorder(null, "Properties", TitledBorder.LEADING, TitledBorder.TOP, null, null));
+        contentPanel.add(panelProperties);
+        panelProperties.setLayout(new FormLayout(new ColumnSpec[] {
+                FormSpecs.RELATED_GAP_COLSPEC,
+                ColumnSpec.decode("max(70dlu;default)"),
+                FormSpecs.RELATED_GAP_COLSPEC,
+                FormSpecs.DEFAULT_COLSPEC,},
+            new RowSpec[] {
+                FormSpecs.RELATED_GAP_ROWSPEC,
+                FormSpecs.DEFAULT_ROWSPEC,
+                FormSpecs.RELATED_GAP_ROWSPEC,
+                FormSpecs.DEFAULT_ROWSPEC,}));
+        
+        lblDriver = new JLabel("Driver");
+        panelProperties.add(lblDriver, "2, 2, right, default");
+        
+        driver = new JComboBox(new DriversComboBoxModel(machine, true));
+        panelProperties.add(driver, "4, 2, fill, default");
+        
+        lblName = new JLabel("Name");
+        panelProperties.add(lblName, "2, 4, right, default");
+        
+        nameTf = new JTextField();
+        panelProperties.add(nameTf, "4, 4, fill, default");
+        nameTf.setColumns(20);
+        
+        super.createUi(machine);
     }
 
     @Override
     public void createBindings() {
-        LengthConverter lengthConverter = new LengthConverter();
+        super.createBindings();
+        
+        AbstractMachine machine = (AbstractMachine) Configuration.get().getMachine();
+        NamedConverter<Driver> driverConverter = new NamedConverter<>(machine.getDrivers()); 
+        
+        addWrappedBinding(actuator, "driver", driver, "selectedItem", driverConverter);
+        addWrappedBinding(actuator, "name", nameTf, "text");
 
-        MutableLocationProxy headOffsets = new MutableLocationProxy();
-        bind(UpdateStrategy.READ_WRITE, actuator, "headOffsets", headOffsets,
-                "location");
-        addWrappedBinding(headOffsets, "lengthX", locationX, "text",
-                lengthConverter);
-        addWrappedBinding(headOffsets, "lengthY", locationY, "text",
-                lengthConverter);
-        addWrappedBinding(headOffsets, "lengthZ", locationZ, "text",
-                lengthConverter);
-
-        ComponentDecorators
-                .decorateWithAutoSelectAndLengthConversion(locationX);
-        ComponentDecorators
-                .decorateWithAutoSelectAndLengthConversion(locationY);
-        ComponentDecorators
-                .decorateWithAutoSelectAndLengthConversion(locationZ);
+        ComponentDecorators.decorateWithAutoSelect(nameTf);
     }
 }
