@@ -20,10 +20,9 @@
 package org.openpnp.gui;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
-import java.awt.Component;
-import java.awt.Color;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
@@ -34,7 +33,6 @@ import java.util.stream.Collectors;
 
 import javax.swing.AbstractAction;
 import javax.swing.Action;
-import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
@@ -57,13 +55,10 @@ import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableRowSorter;
 
-import org.openpnp.events.BoardLocationSelectedEvent;
 import org.openpnp.events.FeederSelectedEvent;
-import org.openpnp.gui.JobPanel.SetCheckFidsAction;
-import org.openpnp.gui.JobPanel.SetEnabledAction;
-import org.openpnp.gui.JobPanel.SetSideAction;
 import org.openpnp.gui.components.AutoSelectTextTable;
 import org.openpnp.gui.components.ClassSelectionDialog;
+import org.openpnp.gui.support.CustomBooleanRenderer;
 import org.openpnp.gui.support.AbstractConfigurationWizard;
 import org.openpnp.gui.support.ActionGroup;
 import org.openpnp.gui.support.Helpers;
@@ -72,18 +67,17 @@ import org.openpnp.gui.support.MessageBoxes;
 import org.openpnp.gui.support.Wizard;
 import org.openpnp.gui.support.WizardContainer;
 import org.openpnp.gui.tablemodel.FeedersTableModel;
-import org.openpnp.model.Board;
 import org.openpnp.model.BoardLocation;
 import org.openpnp.model.Configuration;
+import org.openpnp.model.Job;
 import org.openpnp.model.Location;
 import org.openpnp.model.Part;
-import org.openpnp.model.Job;
 import org.openpnp.model.Placement;
 import org.openpnp.spi.Camera;
 import org.openpnp.spi.Feeder;
+import org.openpnp.spi.JobProcessor.JobProcessorException;
 import org.openpnp.spi.Nozzle;
 import org.openpnp.spi.NozzleTip;
-import org.openpnp.spi.JobProcessor.JobProcessorException;
 import org.openpnp.spi.PropertySheetHolder.PropertySheet;
 import org.openpnp.util.MovableUtils;
 import org.openpnp.util.UiUtils;
@@ -170,8 +164,7 @@ public class FeedersPanel extends JPanel implements WizardContainer {
 		searchTextField.setColumns(15);
 
 		table = new AutoSelectTextTable(tableModel);
-
-		table.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+		table.setDefaultRenderer(Boolean.class, new CustomBooleanRenderer() {
 			// cells are grayed if the feeder is not used by any enabled placement.
 			@Override
 			public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
@@ -179,7 +172,7 @@ public class FeedersPanel extends JPanel implements WizardContainer {
 				final Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row,
 						column);
 				if (!isSelected) {
-					String partId = (String) tableModel.getValueAt(row, 2);
+					String partId = (String) tableModel.getValueAt(tableSorter.convertRowIndexToModel(row), 2);
 					Job job = mainFrame.getJobTab().getJob();
 					boolean bFound = false;
 
@@ -198,7 +191,7 @@ public class FeedersPanel extends JPanel implements WizardContainer {
 								continue;
 							}
 
-							if (placement.getPart().getId() == partId) {
+							if (placement.getPart() != null && placement.getPart().getId().equals(partId)) {
 								bFound = true;
 								break;
 							}
@@ -207,7 +200,11 @@ public class FeedersPanel extends JPanel implements WizardContainer {
 							break;
 						}
 					}
-					c.setBackground(bFound ? Color.WHITE : new Color(230, 230, 230));
+					if (!bFound) {
+                        c.setEnabled(false);
+                    } else {
+					    c.setEnabled(true);
+                    }
 				}
 				return c;
 			}
@@ -278,9 +275,12 @@ public class FeedersPanel extends JPanel implements WizardContainer {
                         priorFeederId = feeder.getId();
                         PropertySheet[] propertySheets = feeder.getPropertySheets();
                         for (PropertySheet ps : propertySheets) {
-                            AbstractConfigurationWizard wizard = (AbstractConfigurationWizard) ps.getPropertySheetPanel();
-                            wizard.setWizardContainer(FeedersPanel.this);
-                            configurationPanel.addTab(ps.getPropertySheetTitle(), wizard);
+                            JPanel panel = ps.getPropertySheetPanel();
+                            if(panel instanceof AbstractConfigurationWizard) {
+                                AbstractConfigurationWizard wizard = (AbstractConfigurationWizard) ps.getPropertySheetPanel();
+                                wizard.setWizardContainer(FeedersPanel.this);
+                            }
+                            configurationPanel.addTab(ps.getPropertySheetTitle(), panel);
                         }
                     }
                     
@@ -307,10 +307,13 @@ public class FeedersPanel extends JPanel implements WizardContainer {
     private boolean keepUnAppliedFeederConfigurationChanges() {
         Feeder priorFeeder = configuration.getMachine().getFeeder(priorFeederId);
         boolean feederConfigurationIsDirty = false;
-        int i = 0;
-        while (!feederConfigurationIsDirty && (i<configurationPanel.getComponentCount())) {
-            feederConfigurationIsDirty = ((AbstractConfigurationWizard) configurationPanel.getComponent(i)).isDirty();
-            i++;
+        for (Component component : configurationPanel.getComponents()) {
+            if(component instanceof AbstractConfigurationWizard) {
+                feederConfigurationIsDirty = ((AbstractConfigurationWizard) component).isDirty();
+                if(feederConfigurationIsDirty) {
+                    break;
+                }
+            }
         }
         if (feederConfigurationIsDirty && (priorFeeder != null)) {
             int selection = JOptionPane.showConfirmDialog(null,
@@ -322,14 +325,14 @@ public class FeedersPanel extends JPanel implements WizardContainer {
                     );
             switch (selection) {
 				case JOptionPane.YES_OPTION:
-				    int j = 0;
-				    while ((j<configurationPanel.getComponentCount())) {
-				    	AbstractConfigurationWizard wizard = ((AbstractConfigurationWizard) configurationPanel.getComponent(j));
-				        if (wizard.isDirty()) {
-							wizard.apply();
-				        }
-				        j++;
-				    }
+                    for (Component component : configurationPanel.getComponents()) {
+                        if(component instanceof AbstractConfigurationWizard) {
+                            AbstractConfigurationWizard wizard = (AbstractConfigurationWizard) component;
+                            if(wizard.isDirty()) {
+                                wizard.apply();
+                            }
+                        }
+                    }
 				    return false;
 				case JOptionPane.NO_OPTION:
 					return false;
@@ -428,7 +431,7 @@ public class FeedersPanel extends JPanel implements WizardContainer {
             rf = RowFilter.regexFilter("(?i)" + searchTextField.getText().trim());
         }
         catch (PatternSyntaxException e) {
-            Logger.warn("Search failed", e);
+            Logger.warn(e, "Search failed");
             return;
         }
         tableSorter.setRowFilter(rf);
@@ -557,6 +560,7 @@ public class FeedersPanel extends JPanel implements WizardContainer {
                 feeder.feed(nozzle);
                 Location pickLocation = feeder.getPickLocation();
                 MovableUtils.moveToLocationAtSafeZ(nozzle, pickLocation);
+                MovableUtils.fireTargetedUserAction(nozzle);
             });
         }
     };
@@ -579,6 +583,9 @@ public class FeedersPanel extends JPanel implements WizardContainer {
     };
 
     public static void pickFeeder(Feeder feeder) throws Exception, JobProcessorException {
+        if (feeder.getPart() == null) {
+            throw new Exception("Feeder "+feeder.getName()+" has no part.");
+        }
         // Simulate a "one feeder" job, prepare the feeder.
         if (feeder.getJobPreparationLocation() != null) {
             feeder.prepareForJob(true);
@@ -638,6 +645,8 @@ public class FeedersPanel extends JPanel implements WizardContainer {
                 throw new JobProcessorException(nozzle, "No part detected.");
             }
         }
+        // The part is now on the nozzle.
+        MovableUtils.fireTargetedUserAction(nozzle);
     }
 
     public Action moveCameraToPickLocation = new AbstractAction() {
@@ -656,6 +665,7 @@ public class FeedersPanel extends JPanel implements WizardContainer {
                         .getDefaultCamera();
                 Location pickLocation = feeder.getPickLocation();
                 MovableUtils.moveToLocationAtSafeZ(camera, pickLocation);
+                MovableUtils.fireTargetedUserAction(camera);
             });
         }
     };
@@ -676,6 +686,7 @@ public class FeedersPanel extends JPanel implements WizardContainer {
 
                 Location pickLocation = feeder.getPickLocation();
                 MovableUtils.moveToLocationAtSafeZ(nozzle, pickLocation);
+                MovableUtils.fireTargetedUserAction(nozzle);
             });
         }
     };

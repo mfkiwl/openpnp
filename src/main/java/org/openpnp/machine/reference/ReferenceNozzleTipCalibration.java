@@ -20,7 +20,6 @@ import org.openpnp.model.LengthUnit;
 import org.openpnp.model.Location;
 import org.openpnp.model.Point;
 import org.openpnp.spi.Camera;
-import org.openpnp.spi.Nozzle;
 import org.openpnp.spi.NozzleTip;
 import org.openpnp.util.MovableUtils;
 import org.openpnp.util.OpenCvUtils;
@@ -459,7 +458,6 @@ public class ReferenceNozzleTipCalibration extends AbstractModelObject {
         @Override
         public Location getCameraOffset() {
             // Return the axis offset as the camera tool specific calibration offset.
-            Logger.debug("[nozzleTipCalibration] getCameraOffset() returns: {}, {}", this.centerX, this.centerY);
             return new Location(this.units, this.centerX, this.centerY, 0., 0.);
         }
     }
@@ -482,6 +480,8 @@ public class ReferenceNozzleTipCalibration extends AbstractModelObject {
 
     @Attribute(required = false)
     private boolean enabled;
+    @Attribute(required = false)
+    private boolean failHoming = true;
 
     private boolean calibrating;
 
@@ -660,13 +660,15 @@ public class ReferenceNozzleTipCalibration extends AbstractModelObject {
                 } else {
                     misdetects++;
                     if (misdetects > this.allowMisdetections) {
-                        throw new Exception("Too many vision misdetects. Check pipeline and threshold.");
+                        throw new Exception(
+                                "Nozzle tip calibration: too many vision misdetects. Check pipeline and threshold.");
                     }
                 }
             }
 
             if (nozzleTipMeasuredLocations.size() < Math.max(3, angleSubdivisions + 1 - this.allowMisdetections)) {
-                throw new Exception("Not enough results from vision. Check pipeline and threshold."); 
+                throw new Exception(
+                        "Nozzle tip calibration: not enough results from vision. Check pipeline and threshold.");
             }
 
             Configuration.get().getScripting().on("NozzleCalibration.Finished", params);
@@ -735,6 +737,7 @@ public class ReferenceNozzleTipCalibration extends AbstractModelObject {
 
             // after processing the nozzle returns to safe-z
             nozzle.moveToSafeZ();
+            MovableUtils.fireTargetedUserAction(nozzle);
 
             // setting to false in the very end to prevent endless calibration repetitions if calibration was not successful (pipeline not well or similar) and the nozzle is commanded afterwards somewhere else (where the calibration is asked for again ...)
             calibrating = false;
@@ -800,16 +803,7 @@ public class ReferenceNozzleTipCalibration extends AbstractModelObject {
             List<Location> locations = new ArrayList<>();
 
             String stageName = VisionUtils.PIPELINE_RESULTS_NAME;
-            Result pipelineResult = pipeline.getResult(stageName);
-            if (pipelineResult == null) {
-                throw new Exception(String.format("There should be a \"%s\" stage in the pipeline.", stageName));
-            }
-
-            Object results = pipelineResult.model;
-
-            if (results instanceof Exception) {
-                throw (Exception)results;
-            }
+            List results = pipeline.getExpectedResult(stageName).getExpectedModel(List.class);
 
             //show result from pipeline in camera view, but only if GUI is present (not so in UnitTests).
             MainFrame mainFrame = MainFrame.get();
@@ -819,29 +813,28 @@ public class ReferenceNozzleTipCalibration extends AbstractModelObject {
             }
 
             // add all results from pipeline to a Location-list post processing
-            if (results instanceof List) {
-                // are there any results from the pipeline?
-                if (0==((List) results).size()) {
-                    // Don't throw new Exception("No results from vision. Check pipeline.");      
-                    // Instead the number of obtained fixes is evaluated later.
-                    return null;
+            // are there any results from the pipeline?
+            if (0==results.size()) {
+                // Don't throw new Exception("No results from vision. Check pipeline.");      
+                // Instead the number of obtained fixes is evaluated later.
+                return null;
+            }
+            for (Object result : results) {
+                if ((result) instanceof Result.Circle) {
+                    Result.Circle circle = ((Result.Circle) result);
+                    locations.add(VisionUtils.getPixelCenterOffsets(camera, circle.x, circle.y));
                 }
-                for (Object result : (List) results) {
-                    if ((result) instanceof Result.Circle) {
-                        Result.Circle circle = ((Result.Circle) result);
-                        locations.add(VisionUtils.getPixelCenterOffsets(camera, circle.x, circle.y));
-                    }
-                    else if ((result) instanceof KeyPoint) {
-                        KeyPoint keyPoint = ((KeyPoint) result);
-                        locations.add(VisionUtils.getPixelCenterOffsets(camera, keyPoint.pt.x, keyPoint.pt.y));
-                    }
-                    else if ((result) instanceof RotatedRect) {
-                        RotatedRect rect = ((RotatedRect) result);
-                        locations.add(VisionUtils.getPixelCenterOffsets(camera, rect.center.x, rect.center.y));
-                    }
-                    else {
-                        throw new Exception("Unrecognized result " + result);
-                    }
+                else if ((result) instanceof KeyPoint) {
+                    KeyPoint keyPoint = ((KeyPoint) result);
+                    locations.add(VisionUtils.getPixelCenterOffsets(camera, keyPoint.pt.x, keyPoint.pt.y));
+                }
+                else if ((result) instanceof RotatedRect) {
+                    RotatedRect rect = ((RotatedRect) result);
+                    locations.add(VisionUtils.getPixelCenterOffsets(camera, rect.center.x, rect.center.y));
+                }
+                else {
+                    Logger.error("[nozzleTipCalibration] Unrecognized result " + result);
+                    throw new Exception("Unrecognized result " + result);
                 }
             }
 
@@ -1024,6 +1017,14 @@ public class ReferenceNozzleTipCalibration extends AbstractModelObject {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public boolean isFailHoming() {
+        return failHoming;
+    }
+
+    public void setFailHoming(boolean failHoming) {
+        this.failHoming = failHoming;
     }
 
     public CvPipeline getPipeline() throws Exception {

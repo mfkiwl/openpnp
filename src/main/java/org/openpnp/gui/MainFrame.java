@@ -19,15 +19,7 @@
 
 package org.openpnp.gui;
 
-import java.awt.AWTEvent;
-import java.awt.BorderLayout;
-import java.awt.Component;
-import java.awt.Desktop;
-import java.awt.Dimension;
-import java.awt.EventQueue;
-import java.awt.FlowLayout;
-import java.awt.Font;
-import java.awt.Toolkit;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.ComponentAdapter;
@@ -77,6 +69,7 @@ import javax.swing.undo.UndoManager;
 
 import org.openpnp.Translations;
 import org.openpnp.gui.components.CameraPanel;
+import org.openpnp.gui.components.ThemeDialog;
 import org.openpnp.gui.importer.BoardImporter;
 import org.openpnp.gui.importer.DipTraceImporter;
 import org.openpnp.gui.importer.EagleBoardImporter;
@@ -366,6 +359,10 @@ public class MainFrame extends JFrame {
         buttonGroup.add(menuItem);
         mnLanguage.add(menuItem);
 
+        menuItem = new JCheckBoxMenuItem(new LanguageSelectionAction(new Locale("zh_CN")));
+        buttonGroup.add(menuItem);
+        mnLanguage.add(menuItem);
+
         for (int i = 0; i < mnLanguage.getItemCount(); i++) {
             JCheckBoxMenuItem item = (JCheckBoxMenuItem) mnLanguage.getItem(i);
             LanguageSelectionAction action = (LanguageSelectionAction) item.getAction();
@@ -414,6 +411,8 @@ public class MainFrame extends JFrame {
         if (prefs.getBoolean(PREF_WINDOW_STYLE_MULTIPLE, PREF_WINDOW_STYLE_MULTIPLE_DEF)) {
             windowStyleMultipleMenuItem.setSelected(true);
         }
+
+        mnWindows.add(new JMenuItem(editThemeAction));
 
         // Help
         /////////////////////////////////////////////////////////////////////
@@ -641,6 +640,7 @@ public class MainFrame extends JFrame {
         // DRO 
         droLbl = new JLabel("X 0000.0000, Y 0000.0000, Z 0000.0000, R 0000.0000"); //$NON-NLS-1$
         droLbl.setOpaque(true);
+        droLbl.setForeground(new Color(0,0,0));
         droLbl.setFont(new Font("Monospaced", Font.PLAIN, 13)); //$NON-NLS-1$
         droLbl.setBorder(new BevelBorder(BevelBorder.LOWERED, null, null, null, null));
         panelStatusAndDros.add(droLbl, "8, 1"); //$NON-NLS-1$
@@ -1043,6 +1043,13 @@ public class MainFrame extends JFrame {
             }
             MessageBoxes.infoBox("Windows Style Changed", //$NON-NLS-1$
                     "Window style has been changed. Please restart OpenPnP to see the changes."); //$NON-NLS-1$
+        }
+    };
+
+    private Action editThemeAction = new AbstractAction(Translations.getString("Menu.Window.Theme")) { //$NON-NLS-1$
+        @Override
+        public void actionPerformed(ActionEvent arg0) {
+            ThemeDialog.showThemeDialog(mainFrame);
         }
     };
 
